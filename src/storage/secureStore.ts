@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
-import { API_KEY_STORAGE, LOCATION_SLUG_STORAGE } from './keys';
+import type { ThemePreference } from '../theme';
+import { API_KEY_STORAGE, LOCATION_SLUG_STORAGE, THEME_PREFERENCE_STORAGE } from './keys';
 
 async function canUseSecureStore() {
   try {
@@ -41,6 +42,27 @@ export async function setStoredLocationSlug(slug: string): Promise<void> {
   if (!(await canUseSecureStore())) return;
   try {
     await SecureStore.setItemAsync(LOCATION_SLUG_STORAGE, slug);
+  } catch {
+    // ignore
+  }
+}
+
+const THEME_VALUES: ThemePreference[] = ['light', 'dark', 'system'];
+
+export async function getStoredThemePreference(): Promise<ThemePreference | null> {
+  if (!(await canUseSecureStore())) return null;
+  try {
+    const value = await SecureStore.getItemAsync(THEME_PREFERENCE_STORAGE);
+    return THEME_VALUES.includes(value as ThemePreference) ? (value as ThemePreference) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setStoredThemePreference(preference: ThemePreference): Promise<void> {
+  if (!(await canUseSecureStore())) return;
+  try {
+    await SecureStore.setItemAsync(THEME_PREFERENCE_STORAGE, preference);
   } catch {
     // ignore
   }

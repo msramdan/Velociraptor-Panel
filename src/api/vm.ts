@@ -23,9 +23,11 @@ export function listVmImages() {
         ui_position: image.ui_position,
         is_default: image.is_default,
         is_app_catalog: image.is_app_catalog,
+        icon: image.icon,
         versions: (image.versions ?? []).filter((version) => version.published),
       }))
-      .filter((image) => image.versions.length > 0),
+      .filter((image) => image.versions.length > 0)
+      .sort((a, b) => a.ui_position - b.ui_position),
   );
 }
 

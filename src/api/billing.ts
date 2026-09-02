@@ -35,38 +35,3 @@ export function listInvoices(billing_account_id: number) {
       .sort((a, b) => b.created - a.created),
   );
 }
-
-export function requestTopupInvoice(billing_account_id: number, amount: number) {
-  return apiRequest<{ success?: boolean }>(endpoints.creditInvoice, {
-    method: 'POST',
-    form: { billing_account_id, amount },
-  });
-}
-
-export function buyCredit(billing_account_id: number, payment_object_id: number, amount: number) {
-  return apiRequest<{ success?: boolean }>(endpoints.creditBuy, {
-    method: 'POST',
-    form: { billing_account_id, payment_object_id, amount },
-  });
-}
-
-export function parseLinkMethods(additionalData?: string): string[] {
-  if (!additionalData) return [];
-  try {
-    const parsed = JSON.parse(additionalData) as { link_methods?: string[] };
-    return parsed.link_methods ?? [];
-  } catch {
-    return [];
-  }
-}
-
-export const DUITKU_LABELS: Record<string, string> = {
-  'duitku::I1': 'BCA Virtual Account',
-  'duitku::BR': 'BRIVA',
-  'duitku::SP': 'ShopeePay',
-  'duitku::OV': 'OVO',
-  'duitku::DA': 'DANA',
-  'duitku::A1': 'ATM Bersama',
-  'duitku::FT': 'Bank Transfer',
-  'duitku::M1': 'Mandiri VA',
-};

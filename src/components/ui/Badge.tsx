@@ -1,14 +1,23 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { radii } from '../../theme';
 
-export function Badge({ label, tone = 'muted' }: { label: string; tone?: 'success' | 'danger' | 'warning' | 'muted' | 'cyan' }) {
+export function Badge({
+  label,
+  tone = 'muted',
+}: {
+  label: string;
+  tone?: 'success' | 'danger' | 'warning' | 'muted' | 'accent' | 'cyan';
+}) {
+  const { colors } = useTheme();
   const color = {
     success: colors.success,
     danger: colors.danger,
     warning: colors.warning,
     muted: colors.muted,
-    cyan: colors.cyan,
+    accent: colors.accent,
+    cyan: colors.accent,
   }[tone];
 
   return (

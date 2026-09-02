@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { ScrollView, StyleSheet, View, type ScrollViewProps, type ViewStyle } from 'react-native';
 
-import { colors } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 
 export function Screen({
   children,
@@ -16,12 +16,13 @@ export function Screen({
   padded?: boolean;
   refreshControl?: ScrollViewProps['refreshControl'];
 }) {
+  const { colors } = useTheme();
   const bodyStyle = [styles.body, padded && styles.padded, contentContainerStyle];
 
   if (scroll) {
     return (
       <ScrollView
-        style={styles.root}
+        style={[styles.root, { backgroundColor: colors.bg }]}
         contentContainerStyle={bodyStyle}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -32,17 +33,16 @@ export function Screen({
     );
   }
 
-  return <View style={[styles.root, bodyStyle]}>{children}</View>;
+  return <View style={[styles.root, { backgroundColor: colors.bg }, bodyStyle]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.bg,
   },
   body: {
     flexGrow: 1,
-    paddingBottom: 28,
+    paddingBottom: 36,
   },
   padded: {
     paddingHorizontal: 20,

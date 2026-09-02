@@ -1,7 +1,8 @@
 import * as Haptics from 'expo-haptics';
 import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
 
-import { colors, radii } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { radii } from '../../theme';
 
 type Variant = 'primary' | 'ghost' | 'danger' | 'success';
 
@@ -20,11 +21,12 @@ export function Button({
   disabled?: boolean;
   style?: ViewStyle;
 }) {
+  const { colors } = useTheme();
   const palette = {
-    primary: { bg: colors.cyan, fg: '#1A0E06' },
-    ghost: { bg: 'rgba(148,163,184,0.12)', fg: colors.white },
-    danger: { bg: 'rgba(251,113,133,0.16)', fg: colors.danger },
-    success: { bg: 'rgba(52,211,153,0.16)', fg: colors.success },
+    primary: { bg: colors.accent, fg: colors.onAccent },
+    ghost: { bg: colors.overlay, fg: colors.text },
+    danger: { bg: `${colors.danger}22`, fg: colors.danger },
+    success: { bg: `${colors.success}22`, fg: colors.success },
   }[variant];
 
   return (

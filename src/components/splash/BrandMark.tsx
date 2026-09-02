@@ -1,114 +1,56 @@
-import { Image } from 'expo-image';
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 
-import { colors } from '../../theme';
+import type { SplashPhase } from '../../context/SessionContext';
+import { darkColors } from '../../theme';
 
-export function BrandMark() {
-  const enter = useRef(new Animated.Value(0)).current;
-  const spin = useRef(new Animated.Value(0)).current;
+const PROGRESS: Record<SplashPhase, number> = {
+  booting: 0.2,
+  connecting: 0.42,
+  syncing: 0.72,
+  ready: 1,
+  error: 0.28,
+};
+
+export function BrandMark({ phase }: { phase: SplashPhase }) {
+  const fill = useRef(new Animated.Value(PROGRESS[phase])).current;
 
   useEffect(() => {
-    Animated.spring(enter, {
-      toValue: 1,
-      damping: 12,
-      stiffness: 90,
-      useNativeDriver: true,
+    Animated.timing(fill, {
+      toValue: PROGRESS[phase],
+      duration: 420,
+      useNativeDriver: false,
     }).start();
-
-    const loop = Animated.loop(
-      Animated.timing(spin, {
-        toValue: 1,
-        duration: 14000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [enter, spin]);
-
-  const rotate = spin.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
+  }, [fill, phase]);
 
   return (
-    <Animated.View
-      style={[
-        styles.wrap,
-        {
-          opacity: enter,
-          transform: [
-            {
-              scale: enter.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.72, 1],
-              }),
-            },
-          ],
-        },
-      ]}
-    >
-      <Animated.View style={[styles.ring, { transform: [{ rotate }] }]}>
-        <View style={styles.ringDot} />
-        <View style={[styles.ringDot, styles.ringDotAlt]} />
-      </Animated.View>
-      <View style={styles.core}>
-        <Image source={require('../../../assets/icon.png')} style={styles.icon} contentFit="cover" />
-      </View>
-    </Animated.View>
+    <View style={styles.track}>
+      <Animated.View
+        style={[
+          styles.fill,
+          {
+            backgroundColor: phase === 'error' ? darkColors.danger : darkColors.accent,
+            width: fill.interpolate({
+              inputRange: [0, 1],
+              outputRange: ['0%', '100%'],
+            }),
+          },
+        ]}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    width: 168,
-    height: 168,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ring: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    borderRadius: 84,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 106, 42, 0.4)',
-    borderStyle: 'dashed',
-  },
-  ringDot: {
-    position: 'absolute',
-    top: -5,
-    left: '50%',
-    marginLeft: -5,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.cyan,
-    shadowColor: colors.cyan,
-    shadowOpacity: 1,
-    shadowRadius: 8,
-  },
-  ringDotAlt: {
-    top: undefined,
-    bottom: -5,
-    backgroundColor: colors.indigo,
-    shadowColor: colors.indigo,
-  },
-  core: {
-    width: 122,
-    height: 122,
-    borderRadius: 36,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: colors.bgElevated,
-  },
-  icon: {
+  track: {
     width: '100%',
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(241, 239, 234, 0.14)',
+  },
+  fill: {
     height: '100%',
+    borderRadius: 2,
   },
 });

@@ -5,11 +5,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { BrandMark } from '../../components/splash/BrandMark';
-import { GlowOrb } from '../../components/splash/GlowOrb';
 import { SplashStatus } from '../../components/splash/SplashStatus';
 import { useSession } from '../../context/SessionContext';
-import { colors } from '../../theme';
+import { darkColors } from '../../theme';
 
 NativeSplash.preventAutoHideAsync().catch(() => undefined);
 
@@ -29,25 +27,23 @@ export function SplashScreen({ onRetry }: { onRetry?: () => void }) {
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
-      <Image source={require('../../../assets/splash-hero.png')} style={styles.hero} contentFit="cover" />
-      <LinearGradient
-        colors={['rgba(7,8,6,0.28)', 'rgba(7,8,6,0.62)', '#070806']}
-        style={StyleSheet.absoluteFill}
-      />
-
-      <View style={styles.stage}>
-        <GlowOrb size={280} />
-        <GlowOrb size={170} delay={700} />
-        <BrandMark />
+      <View style={styles.heroClip} pointerEvents="none">
+        <Image
+          source={require('../../../assets/splash-hero.png')}
+          style={styles.hero}
+          contentFit="cover"
+          contentPosition="top"
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(18,19,17,0.2)', darkColors.bg]}
+          locations={[0.52, 0.78, 1]}
+          style={StyleSheet.absoluteFill}
+        />
       </View>
 
-      <Animated.View style={[styles.copy, { opacity: fade, transform: [{ translateY: rise }] }]}>
-        <Text style={styles.kicker}>PANEL</Text>
-        <Text style={styles.title}>Velociraptor</Text>
-        <Text style={styles.subtitle}>Kontrol VPS, profil, billing, dan topup.</Text>
-      </Animated.View>
-
-      <View style={styles.footer}>
+      <Animated.View
+        style={[styles.footer, { opacity: fade, transform: [{ translateY: rise }] }]}
+      >
         <SplashStatus
           phase={splash.phase}
           label={splash.label}
@@ -64,7 +60,7 @@ export function SplashScreen({ onRetry }: { onRetry?: () => void }) {
             {splash.phase === 'ready' ? 'Masuk ke konsol...' : 'Direct API · header apikey'}
           </Text>
         )}
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -72,10 +68,17 @@ export function SplashScreen({ onRetry }: { onRetry?: () => void }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: darkColors.bg,
     paddingHorizontal: 24,
-    paddingTop: 72,
     paddingBottom: 36,
+  },
+  heroClip: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    overflow: 'hidden',
   },
   hero: {
     position: 'absolute',
@@ -83,38 +86,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    opacity: 0.55,
-  },
-  stage: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 280,
-    marginTop: 24,
-  },
-  copy: {
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  kicker: {
-    color: colors.cyan,
-    letterSpacing: 4,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  title: {
-    marginTop: 8,
-    color: colors.white,
-    fontSize: 42,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-  },
-  subtitle: {
-    marginTop: 10,
-    color: colors.muted,
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-    maxWidth: 280,
+    opacity: 0.92,
   },
   footer: {
     marginTop: 'auto',
@@ -131,7 +103,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   retryText: {
-    color: colors.cyan,
+    color: darkColors.accent,
     fontWeight: '700',
   },
 });

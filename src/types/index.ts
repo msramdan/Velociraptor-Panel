@@ -153,6 +153,7 @@ export type OsImage = {
   ui_position: number;
   is_default: boolean;
   is_app_catalog: boolean;
+  icon?: string;
   versions: OsVersion[];
 };
 
@@ -162,11 +163,23 @@ export type HostPool = {
   description?: string;
   is_visible?: boolean;
   is_default_designated?: boolean;
+  ui_position?: number;
   guest_limits?: {
     cpu?: { min: number; max: number };
     ram_mb?: { min: number; max: number };
     disk_gb?: { min: number; max: number };
   };
+};
+
+export type PricingRule = {
+  policyId: number;
+  resourceType: string;
+  pricePerUnit: number;
+  serviceNameUserFriendly?: string;
+  serviceNameInUptime?: string;
+  numCpus?: number;
+  megsRam?: number;
+  gigsStorage?: number;
 };
 
 export class ApiError extends Error {

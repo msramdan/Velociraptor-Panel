@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, TextInput, View, type KeyboardTypeOptions } from 'react-native';
 
-import { colors, radii } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { radii } from '../../theme';
 
 export function Field({
   label,
@@ -19,19 +20,27 @@ export function Field({
   keyboardType?: KeyboardTypeOptions;
   editable?: boolean;
 }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: colors.muted }]}>{label}</Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="rgba(226,232,240,0.35)"
+        placeholderTextColor={colors.placeholder}
         secureTextEntry={secure}
         keyboardType={keyboardType}
         editable={editable}
         autoCapitalize="none"
-        style={styles.input}
+        style={[
+          styles.input,
+          {
+            backgroundColor: colors.inputBg,
+            borderColor: colors.line,
+            color: colors.text,
+          },
+        ]}
       />
     </View>
   );
@@ -46,9 +55,17 @@ export function Chip({
   active?: boolean;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
   return (
-    <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.chip,
+        { borderColor: colors.line, backgroundColor: colors.inputBg },
+        active && { borderColor: colors.accent, backgroundColor: colors.accentDim },
+      ]}
+    >
+      <Text style={[styles.chipText, { color: colors.muted }, active && { color: colors.accent }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -58,38 +75,24 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   label: {
-    color: colors.muted,
     fontSize: 12,
     fontWeight: '600',
   },
   input: {
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
     borderWidth: 1,
-    borderColor: colors.line,
     borderRadius: radii.md,
-    color: colors.white,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
   },
   chip: {
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: 'rgba(15,23,42,0.7)',
     borderRadius: radii.pill,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  chipActive: {
-    borderColor: colors.cyan,
-    backgroundColor: colors.cyanDim,
-  },
   chipText: {
-    color: colors.muted,
     fontSize: 12,
     fontWeight: '700',
-  },
-  chipTextActive: {
-    color: colors.cyan,
   },
 });

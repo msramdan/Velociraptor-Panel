@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '../../components/ui/Button';
 import { Card, SectionTitle } from '../../components/ui/Card';
@@ -8,10 +9,18 @@ import { Field } from '../../components/ui/Field';
 import { Header } from '../../components/ui/Header';
 import { Screen } from '../../components/ui/Screen';
 import { useSession } from '../../context/SessionContext';
-import { colors } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import type { ThemePreference } from '../../theme';
+
+const THEME_OPTIONS: { key: ThemePreference; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'system', label: 'Sistem', icon: 'phone-portrait-outline' },
+  { key: 'light', label: 'Terang', icon: 'sunny-outline' },
+  { key: 'dark', label: 'Gelap', icon: 'moon-outline' },
+];
 
 export function ProfileScreen() {
   const { user, vms, account, patchUserProfile } = useSession();
+  const { colors, preference, setPreference } = useTheme();
   const profile = user?.profile_data;
   const [firstName, setFirstName] = useState(profile?.first_name ?? '');
   const [lastName, setLastName] = useState(profile?.last_name ?? '');
@@ -37,20 +46,50 @@ export function ProfileScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <Header title="Profil" subtitle={profile?.email || user?.name} />
       <Screen scroll>
         <Card style={styles.hero}>
           <Image
             source={profile?.avatar ? { uri: profile.avatar } : require('../../../assets/icon.png')}
-            style={styles.avatar}
+            style={[styles.avatar, { backgroundColor: colors.surface }]}
           />
           <View style={{ flex: 1 }}>
-            <Text style={styles.name}>
+            <Text style={[styles.name, { color: colors.text }]}>
               {profile?.first_name} {profile?.last_name}
             </Text>
-            <Text style={styles.meta}>{profile?.email}</Text>
-            <Text style={styles.meta}>{vms.length} VPS · {account?.title || 'Billing account'}</Text>
+            <Text style={[styles.meta, { color: colors.muted }]}>{profile?.email}</Text>
+            <Text style={[styles.meta, { color: colors.muted }]}>
+              {vms.length} VPS · {account?.title || 'Billing account'}
+            </Text>
+          </View>
+        </Card>
+
+        <SectionTitle>TAMPILAN</SectionTitle>
+        <Card>
+          <Text style={[styles.meta, { color: colors.muted, marginBottom: 12 }]}>Mode terang dan gelap, tanpa kontras berlebihan.</Text>
+          <View style={styles.themeRow}>
+            {THEME_OPTIONS.map((option) => {
+              const active = preference === option.key;
+              return (
+                <Pressable
+                  key={option.key}
+                  onPress={() => setPreference(option.key)}
+                  style={[
+                    styles.themeTile,
+                    {
+                      backgroundColor: active ? colors.accentDim : colors.overlay,
+                      borderColor: active ? colors.accent : colors.line,
+                    },
+                  ]}
+                >
+                  <Ionicons name={option.icon} size={18} color={active ? colors.accent : colors.muted} />
+                  <Text style={{ color: active ? colors.accent : colors.text, fontWeight: '700', fontSize: 12 }}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </Card>
 
@@ -68,9 +107,18 @@ export function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+  root: { flex: 1 },
   hero: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.navy },
-  name: { color: colors.white, fontSize: 20, fontWeight: '800' },
-  meta: { color: colors.muted, marginTop: 4, fontSize: 13 },
+  avatar: { width: 64, height: 64, borderRadius: 32 },
+  name: { fontSize: 20, fontWeight: '800' },
+  meta: { marginTop: 4, fontSize: 13 },
+  themeRow: { flexDirection: 'row', gap: 8 },
+  themeTile: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
 });

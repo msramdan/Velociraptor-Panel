@@ -17,7 +17,6 @@ export const endpoints = {
   billingAccount: '/payment/billing_account',
   unpaidAmount: '/payment/billing_account/unpaid_amount',
   creditList: '/payment/credit/list',
-  creditBuy: '/payment/credit/buy',
-  creditInvoice: '/payment/credit/request_invoice',
   invoices: '/payment/invoice/list',
+  pricingPolicy: '/pricing/policy',
 } as const;

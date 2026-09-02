@@ -14,6 +14,7 @@ import {
   changeVmPassword,
   deleteVm,
   getVm,
+  listHostPools,
   modifyDisk,
   modifyVm,
   reinstallVm,
@@ -23,44 +24,64 @@ import {
   stopVm,
   toggleBackup,
 } from '../../api';
+import { ActionTile } from '../../components/ui/ActionTile';
 import { Badge, vmTone } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card, SectionTitle } from '../../components/ui/Card';
 import { Field } from '../../components/ui/Field';
 import { Header } from '../../components/ui/Header';
+import { InfoRow } from '../../components/ui/InfoRow';
 import { Screen } from '../../components/ui/Screen';
+import { ServerArt } from '../../components/ui/ServerArt';
+import { SpecSlider } from '../../components/ui/SpecSlider';
 import { useSession } from '../../context/SessionContext';
+import { useTheme } from '../../context/ThemeContext';
 import { useNav } from '../../navigation/NavigationContext';
-import { colors } from '../../theme';
-import type { VirtualMachine } from '../../types';
+import type { HostPool, VirtualMachine } from '../../types';
 import { ramLabel } from '../../utils/format';
+
+function evenStep(value: number, min = 2) {
+  return Math.max(min, Math.round(value / 2) * 2);
+}
 
 export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationSlug: string }) {
   const { back } = useNav();
+  const { colors } = useTheme();
   const { vms, refreshVms, locations } = useSession();
   const listed = vms.find((vm) => vm.uuid === uuid);
   const locationName = listed?.locationName ?? locations.find((item) => item.slug === locationSlug)?.display_name ?? locationSlug;
   const [vm, setVm] = useState<VirtualMachine | null>(listed ?? null);
   const [busy, setBusy] = useState<string | null>(null);
   const [name, setName] = useState(listed?.name ?? '');
-  const [vcpu, setVcpu] = useState(String(listed?.vcpu ?? 2));
-  const [ram, setRam] = useState(String(listed?.memory ?? 2048));
+  const [vcpu, setVcpu] = useState(evenStep(listed?.vcpu ?? 2));
+  const [ramGb, setRamGb] = useState(evenStep(Math.round((listed?.memory ?? 2048) / 1024)));
   const [password, setPassword] = useState('');
   const [diskGb, setDiskGb] = useState('20');
   const [resizeGb, setResizeGb] = useState('');
+  const [pool, setPool] = useState<HostPool | null>(null);
 
   async function reload() {
     const next = await getVm(uuid, locationSlug);
     setVm(next);
     setName(next.name);
-    setVcpu(String(next.vcpu));
-    setRam(String(next.memory));
+    setVcpu(evenStep(next.vcpu));
+    setRamGb(evenStep(Math.round(next.memory / 1024)));
     const primary = next.storage?.find((disk) => disk.primary) ?? next.storage?.[0];
     if (primary) setResizeGb(String(primary.size));
   }
 
   useEffect(() => {
     reload().catch((error) => Alert.alert('Gagal memuat VM', error.message));
+    listHostPools(locationSlug)
+      .then((pools) => {
+        const match =
+          pools.find((item) => item.uuid === listed?.designated_pool_uuid) ??
+          pools.find((item) => item.is_default_designated) ??
+          pools.find((item) => item.is_visible) ??
+          pools[0];
+        setPool(match ?? null);
+      })
+      .catch(() => setPool(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uuid, locationSlug]);
 
@@ -80,9 +101,9 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
 
   if (!vm) {
     return (
-      <View style={styles.root}>
+      <View style={[styles.root, { backgroundColor: colors.bg }]}>
         <Header title="Detail VPS" onBack={back} />
-        <Text style={styles.muted}>Memuat...</Text>
+        <Text style={[styles.muted, { color: colors.muted }]}>Memuat...</Text>
       </View>
     );
   }
@@ -90,9 +111,14 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
   const primaryDisk = vm.storage?.find((disk) => disk.primary) ?? vm.storage?.[0];
   const stopped = vm.status === 'stopped';
   const ip = vm.public_ipv4 || vm.private_ipv4 || '—';
+  const cpuRange = pool?.guest_limits?.cpu ?? { min: 2, max: 32 };
+  const ramRange = {
+    min: evenStep(Math.round((pool?.guest_limits?.ram_mb?.min ?? 2048) / 1024)),
+    max: evenStep(Math.round((pool?.guest_limits?.ram_mb?.max ?? 65536) / 1024)),
+  };
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Header
         title={vm.name}
         subtitle={`${locationName} · ${vm.os_name} ${vm.os_version}`}
@@ -100,32 +126,31 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
         right={<Badge label={vm.status} tone={vmTone(vm.status)} />}
       />
       <Screen scroll>
+        <View style={styles.hero}>
+          <ServerArt size={72} />
+        </View>
         <Card>
-          <Row label="Hostname" value={vm.hostname} />
-          <Row
-            label="IP"
-            value={ip}
-            onCopy={() => Clipboard.setStringAsync(String(ip))}
-          />
-          <Row label="Username" value={vm.username} />
-          <Row label="vCPU / RAM" value={`${vm.vcpu} / ${ramLabel(vm.memory)}`} />
-          <Row label="Disk" value={`${primaryDisk?.size ?? 0} GB ${primaryDisk?.name ?? ''}`} />
-          <Row label="Backup" value={vm.backup ? 'Aktif' : 'Mati'} />
+          <InfoRow icon="desktop-outline" label="Hostname" value={vm.hostname} />
+          <InfoRow icon="globe-outline" label="IP" value={ip} onPress={() => Clipboard.setStringAsync(String(ip))} />
+          <InfoRow icon="person-outline" label="Username" value={vm.username} />
+          <InfoRow icon="hardware-chip-outline" label="vCPU / RAM" value={`${vm.vcpu} / ${ramLabel(vm.memory)}`} />
+          <InfoRow icon="disc-outline" label="Disk" value={`${primaryDisk?.size ?? 0} GB ${primaryDisk?.name ?? ''}`} />
+          <InfoRow icon="cloud-outline" label="Backup" value={vm.backup ? 'Aktif' : 'Mati'} />
         </Card>
 
         <SectionTitle>POWER</SectionTitle>
         <View style={styles.rowBtns}>
-          <Button
+          <ActionTile
+            icon="play"
             label="Start"
-            variant="success"
+            tone="success"
             loading={busy === 'start'}
             disabled={vm.status === 'running'}
             onPress={() => run('start', () => startVm(uuid, locationSlug), 'VM dinyalakan')}
-            style={styles.flex}
           />
-          <Button
+          <ActionTile
+            icon="stop"
             label="Stop"
-            variant="ghost"
             loading={busy === 'stop'}
             disabled={stopped}
             onPress={() =>
@@ -135,16 +160,35 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
                 { text: 'Force', style: 'destructive', onPress: () => run('stop', () => stopVm(uuid, locationSlug, true), 'VM di-force stop') },
               ])
             }
-            style={styles.flex}
           />
         </View>
 
         <SectionTitle>SPESIFIKASI</SectionTitle>
         <Card style={{ gap: 12 }}>
           <Field label="Nama" value={name} onChangeText={setName} />
-          <Field label="vCPU" value={vcpu} onChangeText={setVcpu} keyboardType="number-pad" editable={stopped} />
-          <Field label="RAM (MB)" value={ram} onChangeText={setRam} keyboardType="number-pad" editable={stopped} />
-          <Text style={styles.hint}>vCPU dan RAM hanya bisa diubah saat VM stopped.</Text>
+        </Card>
+        <View style={[styles.specCard, { backgroundColor: colors.accent }]}>
+          <SpecSlider
+            label="CPU"
+            value={vcpu}
+            min={cpuRange.min}
+            max={cpuRange.max}
+            step={2}
+            onChange={setVcpu}
+            disabled={!stopped}
+          />
+          <SpecSlider
+            label="GB RAM"
+            value={ramGb}
+            min={ramRange.min}
+            max={ramRange.max}
+            step={2}
+            onChange={setRamGb}
+            disabled={!stopped}
+          />
+        </View>
+        <Card style={{ gap: 12, marginTop: 10 }}>
+          <Text style={[styles.hint, { color: colors.muted }]}>vCPU dan RAM hanya bisa diubah saat VM stopped. Kelipatan 2.</Text>
           <Button
             label="Simpan perubahan"
             loading={busy === 'modify'}
@@ -156,7 +200,7 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
                     {
                       uuid,
                       name,
-                      ...(stopped ? { vcpu: Number(vcpu), ram: Number(ram) } : {}),
+                      ...(stopped ? { vcpu, ram: ramGb * 1024 } : {}),
                     },
                     locationSlug,
                   ),
@@ -182,9 +226,12 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
         <SectionTitle>DISK</SectionTitle>
         <Card style={{ gap: 12 }}>
           {vm.storage?.map((disk) => (
-            <Text key={disk.uuid} style={styles.disk}>
-              {disk.name} · {disk.size} GB {disk.primary ? '· primary' : ''}
-            </Text>
+            <InfoRow
+              key={disk.uuid}
+              icon="disc-outline"
+              label={disk.primary ? `${disk.name} · primary` : disk.name}
+              value={`${disk.size} GB`}
+            />
           ))}
           <Field label="Tambah disk (GB)" value={diskGb} onChangeText={setDiskGb} keyboardType="number-pad" />
           <Button
@@ -210,9 +257,9 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
 
         <SectionTitle>JARINGAN & BACKUP</SectionTitle>
         <View style={styles.rowBtns}>
-          <Button
-            label={vm.public_ipv4 ? 'Lepas IP publik' : 'Reserve IP publik'}
-            variant="ghost"
+          <ActionTile
+            icon="globe-outline"
+            label={vm.public_ipv4 ? 'Lepas IP' : 'Reserve IP'}
             loading={busy === 'ip'}
             onPress={() =>
               run(
@@ -221,14 +268,12 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
                 'IP publik diperbarui',
               )
             }
-            style={styles.flex}
           />
-          <Button
-            label={vm.backup ? 'Matikan backup' : 'Nyalakan backup'}
-            variant="ghost"
+          <ActionTile
+            icon="cloud-outline"
+            label={vm.backup ? 'Backup off' : 'Backup on'}
             loading={busy === 'backup'}
             onPress={() => run('backup', () => toggleBackup(uuid, locationSlug), 'Backup diperbarui')}
-            style={styles.flex}
           />
         </View>
 
@@ -279,25 +324,18 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
   );
 }
 
-function Row({ label, value, onCopy }: { label: string; value: string; onCopy?: () => void }) {
-  return (
-    <View style={styles.kv}>
-      <Text style={styles.k}>{label}</Text>
-      <Text style={styles.v} onPress={onCopy}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  muted: { color: colors.muted, textAlign: 'center', marginTop: 40 },
+  root: { flex: 1 },
+  hero: { alignItems: 'center', marginBottom: 14 },
+  muted: { textAlign: 'center', marginTop: 40 },
   rowBtns: { flexDirection: 'row', gap: 10 },
-  flex: { flex: 1 },
-  hint: { color: colors.muted, fontSize: 12, lineHeight: 18 },
-  disk: { color: colors.white, fontSize: 13 },
-  kv: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 6 },
-  k: { color: colors.muted, fontSize: 13 },
-  v: { color: colors.white, fontSize: 13, fontWeight: '700', flexShrink: 1, textAlign: 'right' },
+  hint: { fontSize: 12, lineHeight: 18 },
+  specCard: {
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
+    marginTop: 10,
+    gap: 6,
+  },
 });

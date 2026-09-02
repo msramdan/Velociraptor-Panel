@@ -5,7 +5,6 @@ export type AppRoute =
   | { name: 'vm-detail'; uuid: string; locationSlug: string }
   | { name: 'vm-create' }
   | { name: 'billing' }
-  | { name: 'topup' }
   | { name: 'profile' };
 
 export type TabName = 'vms' | 'billing' | 'profile';

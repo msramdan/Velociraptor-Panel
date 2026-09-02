@@ -3,3 +3,4 @@ export { endpoints } from './endpoints';
 export * from './user';
 export * from './vm';
 export * from './billing';
+export * from './pricing';

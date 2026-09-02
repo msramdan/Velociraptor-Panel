@@ -1,7 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { BrandMark } from './BrandMark';
 import type { SplashPhase } from '../../context/SessionContext';
-import { colors, radii } from '../../theme';
+import { darkColors, radii } from '../../theme';
 
 const LABELS: Record<SplashPhase, string> = {
   booting: 'BOOT',
@@ -24,7 +25,7 @@ export function SplashStatus({
   runningCount: number;
   error: string | null;
 }) {
-  const tone = phase === 'error' ? colors.danger : phase === 'ready' ? colors.success : colors.cyan;
+  const tone = phase === 'error' ? darkColors.danger : phase === 'ready' ? darkColors.success : darkColors.accent;
 
   return (
     <View style={styles.card}>
@@ -42,6 +43,9 @@ export function SplashStatus({
       ) : (
         <Text style={styles.meta}>Direct API · apikey header</Text>
       )}
+      <View style={styles.loader}>
+        <BrandMark phase={phase} />
+      </View>
     </View>
   );
 }
@@ -52,9 +56,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     paddingVertical: 18,
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(11, 19, 38, 0.72)',
+    backgroundColor: 'rgba(18, 19, 17, 0.78)',
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: darkColors.line,
   },
   row: {
     flexDirection: 'row',
@@ -73,19 +77,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   label: {
-    color: colors.white,
+    color: darkColors.text,
     fontSize: 18,
     fontWeight: '700',
   },
   meta: {
     marginTop: 6,
-    color: colors.muted,
+    color: darkColors.muted,
     fontSize: 13,
   },
   error: {
     marginTop: 6,
-    color: colors.danger,
+    color: darkColors.danger,
     fontSize: 13,
     lineHeight: 18,
+  },
+  loader: {
+    marginTop: 16,
   },
 });
