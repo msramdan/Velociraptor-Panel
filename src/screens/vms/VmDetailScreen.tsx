@@ -1,13 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 
 import {
   addDisk,
@@ -31,14 +24,17 @@ import { Card, SectionTitle } from '../../components/ui/Card';
 import { Field } from '../../components/ui/Field';
 import { Header } from '../../components/ui/Header';
 import { InfoRow } from '../../components/ui/InfoRow';
+import { PasswordField } from '../../components/ui/PasswordField';
 import { Screen } from '../../components/ui/Screen';
 import { ServerArt } from '../../components/ui/ServerArt';
 import { SpecSlider } from '../../components/ui/SpecSlider';
+import { useDialog } from '../../context/DialogContext';
 import { useSession } from '../../context/SessionContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useNav } from '../../navigation/NavigationContext';
 import type { HostPool, VirtualMachine } from '../../types';
 import { ramLabel } from '../../utils/format';
+import { isValidVmPassword } from '../../utils/password';
 
 function evenStep(value: number, min = 2) {
   return Math.max(min, Math.round(value / 2) * 2);
@@ -47,6 +43,7 @@ function evenStep(value: number, min = 2) {
 export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationSlug: string }) {
   const { back } = useNav();
   const { colors } = useTheme();
+  const dialog = useDialog();
   const { vms, refreshVms, locations } = useSession();
   const listed = vms.find((vm) => vm.uuid === uuid);
   const locationName = listed?.locationName ?? locations.find((item) => item.slug === locationSlug)?.display_name ?? locationSlug;
@@ -71,7 +68,9 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
   }
 
   useEffect(() => {
-    reload().catch((error) => Alert.alert('Gagal memuat VM', error.message));
+    reload().catch((error) => {
+      void dialog.error('Gagal memuat VM', error.message);
+    });
     listHostPools(locationSlug)
       .then((pools) => {
         const match =
@@ -85,15 +84,17 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uuid, locationSlug]);
 
-  async function run(key: string, task: () => Promise<unknown>, success?: string) {
+  async function run(key: string, task: () => Promise<unknown>, success?: string, skipReload = false) {
     setBusy(key);
     try {
       await task();
-      await reload();
-      await refreshVms();
-      if (success) Alert.alert('Berhasil', success);
+      if (!skipReload) {
+        await reload();
+        await refreshVms();
+      }
+      if (success) await dialog.success('Berhasil', success);
     } catch (error) {
-      Alert.alert('Gagal', error instanceof Error ? error.message : 'Aksi VM gagal');
+      await dialog.error('Gagal', error instanceof Error ? error.message : 'Aksi VM gagal');
     } finally {
       setBusy(null);
     }
@@ -153,13 +154,24 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
             label="Stop"
             loading={busy === 'stop'}
             disabled={stopped}
-            onPress={() =>
-              Alert.alert('Matikan VM?', 'ACPI shutdown (graceful).', [
-                { text: 'Batal', style: 'cancel' },
-                { text: 'Stop', onPress: () => run('stop', () => stopVm(uuid, locationSlug, false), 'VM dimatikan') },
-                { text: 'Force', style: 'destructive', onPress: () => run('stop', () => stopVm(uuid, locationSlug, true), 'VM di-force stop') },
-              ])
-            }
+            onPress={async () => {
+              const choice = await dialog.show({
+                title: 'Matikan VM?',
+                message: 'ACPI shutdown (graceful). Force stop mematikan langsung.',
+                tone: 'warning',
+                actions: [
+                  { id: 'cancel', label: 'Batal', variant: 'ghost' },
+                  { id: 'force', label: 'Force stop', variant: 'danger' },
+                  { id: 'stop', label: 'Stop', variant: 'primary' },
+                ],
+              });
+              if (choice === 'stop') {
+                void run('stop', () => stopVm(uuid, locationSlug, false), 'VM dimatikan');
+              }
+              if (choice === 'force') {
+                void run('stop', () => stopVm(uuid, locationSlug, true), 'VM di-force stop');
+              }
+            }}
           />
         </View>
 
@@ -212,14 +224,18 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
 
         <SectionTitle>PASSWORD</SectionTitle>
         <Card style={{ gap: 12 }}>
-          <Field label={`Password user ${vm.username}`} value={password} onChangeText={setPassword} secure />
+          <PasswordField label={`Password user ${vm.username}`} value={password} onChangeText={setPassword} />
           <Button
             label="Ganti password"
             loading={busy === 'password'}
             disabled={!password}
-            onPress={() =>
-              run('password', () => changeVmPassword(uuid, password, vm.username, locationSlug), 'Password diganti')
-            }
+            onPress={() => {
+              if (!isValidVmPassword(password)) {
+                void dialog.warn('Password belum sesuai', 'Minimal 8 karakter, ada huruf besar, huruf kecil, dan angka.');
+                return;
+              }
+              void run('password', () => changeVmPassword(uuid, password, vm.username, locationSlug), 'Password diganti');
+            }}
           />
         </Card>
 
@@ -283,40 +299,44 @@ export function VmDetailScreen({ uuid, locationSlug }: { uuid: string; locationS
             label="Reinstall OS"
             variant="danger"
             loading={busy === 'reinstall'}
-            onPress={() =>
-              Alert.alert('Reinstall VM?', 'Disk OS akan ditimpa image baru. Data hilang.', [
-                { text: 'Batal', style: 'cancel' },
-                {
-                  text: 'Reinstall',
-                  style: 'destructive',
-                  onPress: () => run('reinstall', () => reinstallVm(uuid, locationSlug), 'Reinstall dimulai'),
-                },
-              ])
-            }
+            onPress={async () => {
+              const ok = await dialog.confirm({
+                title: 'Reinstall VM?',
+                message: 'Disk OS akan ditimpa image baru. Data hilang.',
+                confirmLabel: 'Reinstall',
+                tone: 'danger',
+                confirmVariant: 'danger',
+              });
+              if (ok) {
+                void run('reinstall', () => reinstallVm(uuid, locationSlug), 'Reinstall dimulai');
+              }
+            }}
           />
           <Button
             label="Hapus VM"
             variant="danger"
             loading={busy === 'delete'}
-            onPress={() =>
-              Alert.alert('Hapus VM permanen?', vm.name, [
-                { text: 'Batal', style: 'cancel' },
-                {
-                  text: 'Hapus',
-                  style: 'destructive',
-                  onPress: () =>
-                    run(
-                      'delete',
-                      async () => {
-                        await deleteVm(uuid, locationSlug);
-                        await refreshVms();
-                        back();
-                      },
-                      'VM dihapus',
-                    ),
-                },
-              ])
-            }
+            onPress={async () => {
+              const ok = await dialog.confirm({
+                title: 'Hapus VM permanen?',
+                message: vm.name,
+                confirmLabel: 'Hapus',
+                tone: 'danger',
+                confirmVariant: 'danger',
+              });
+              if (ok) {
+                void run(
+                  'delete',
+                  async () => {
+                    await deleteVm(uuid, locationSlug);
+                    await refreshVms();
+                    back();
+                  },
+                  'VM dihapus',
+                  true,
+                );
+              }
+            }}
           />
         </View>
       </Screen>

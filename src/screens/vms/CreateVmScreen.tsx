@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { createVm, getPricingPolicy, listHostPools, listVmImages } from '../../api';
 import { Button } from '../../components/ui/Button';
@@ -8,18 +8,22 @@ import { Card, SectionTitle } from '../../components/ui/Card';
 import { Field } from '../../components/ui/Field';
 import { Header } from '../../components/ui/Header';
 import { OsLogo } from '../../components/ui/OsLogo';
+import { PasswordField } from '../../components/ui/PasswordField';
 import { Screen } from '../../components/ui/Screen';
 import { SpecSlider } from '../../components/ui/SpecSlider';
+import { useDialog } from '../../context/DialogContext';
 import { useSession } from '../../context/SessionContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useNav } from '../../navigation/NavigationContext';
 import type { HostPool, OsImage, PricingRule } from '../../types';
 import { formatIdr } from '../../utils/format';
+import { isValidVmPassword } from '../../utils/password';
 import { estimateVmPrice } from '../../utils/vmPrice';
 
 export function CreateVmScreen() {
   const { back } = useNav();
   const { colors } = useTheme();
+  const dialog = useDialog();
   const { locations, account, refreshVms } = useSession();
   const [images, setImages] = useState<OsImage[]>([]);
   const [locationSlug, setLocationSlug] = useState(locations.find((item) => item.is_preferred)?.slug || locations[0]?.slug || 'jkt01');
@@ -92,7 +96,11 @@ export function CreateVmScreen() {
 
   async function submit() {
     if (!name || !password || !username) {
-      Alert.alert('Lengkapi form', 'Nama, username, dan password wajib diisi.');
+      await dialog.warn('Lengkapi form', 'Nama, username, dan password wajib diisi.');
+      return;
+    }
+    if (!isValidVmPassword(password)) {
+      await dialog.warn('Password belum sesuai', 'Minimal 8 karakter, ada huruf besar, huruf kecil, dan angka.');
       return;
     }
     setLoading(true);
@@ -115,10 +123,10 @@ export function CreateVmScreen() {
         locationSlug,
       );
       await refreshVms();
-      Alert.alert('VPS dibuat', `${name} sedang disiapkan.`);
+      await dialog.success('VPS dibuat', `${name} sedang disiapkan.`);
       back();
     } catch (error) {
-      Alert.alert('Gagal membuat VPS', error instanceof Error ? error.message : 'Create VM gagal');
+      await dialog.error('Gagal membuat VPS', error instanceof Error ? error.message : 'Create VM gagal');
     } finally {
       setLoading(false);
     }
@@ -306,7 +314,7 @@ export function CreateVmScreen() {
         <SectionTitle>AKSES</SectionTitle>
         <Card style={{ gap: 12 }}>
           <Field label="Username" value={username} onChangeText={setUsername} />
-          <Field label="Password" value={password} onChangeText={setPassword} secure />
+          <PasswordField label="Password" value={password} onChangeText={setPassword} />
           <Button label="Buat VPS" loading={loading} onPress={submit} />
         </Card>
       </Screen>

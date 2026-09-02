@@ -1,13 +1,14 @@
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '../../components/ui/Button';
 import { Card, SectionTitle } from '../../components/ui/Card';
 import { Field } from '../../components/ui/Field';
 import { Header } from '../../components/ui/Header';
 import { Screen } from '../../components/ui/Screen';
+import { useDialog } from '../../context/DialogContext';
 import { useSession } from '../../context/SessionContext';
 import { useTheme } from '../../context/ThemeContext';
 import type { ThemePreference } from '../../theme';
@@ -21,6 +22,7 @@ const THEME_OPTIONS: { key: ThemePreference; label: string; icon: keyof typeof I
 export function ProfileScreen() {
   const { user, vms, account, patchUserProfile } = useSession();
   const { colors, preference, setPreference } = useTheme();
+  const dialog = useDialog();
   const profile = user?.profile_data;
   const [firstName, setFirstName] = useState(profile?.first_name ?? '');
   const [lastName, setLastName] = useState(profile?.last_name ?? '');
@@ -37,9 +39,9 @@ export function ProfileScreen() {
         phone_number: phone,
         personal_id_number: personalId || undefined,
       });
-      Alert.alert('Tersimpan', 'Profil IDCloudHost diperbarui.');
+      await dialog.success('Tersimpan', 'Profil IDCloudHost diperbarui.');
     } catch (error) {
-      Alert.alert('Gagal menyimpan', error instanceof Error ? error.message : 'Update profil gagal');
+      await dialog.error('Gagal menyimpan', error instanceof Error ? error.message : 'Update profil gagal');
     } finally {
       setSaving(false);
     }
